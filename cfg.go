@@ -9,35 +9,47 @@ import (
 	"strings"
 
 	"github.com/imdario/mergo"
+	"github.com/mitchellh/mapstructure"
 )
 
 type Config struct {
 	SourceFiles []string
-	lastErr     error
 }
 
-func (c *Config) Error() error {
-	return c.lastErr
-}
-
-func (c *Config) Get(path string, out interface{}) error {
+func (c Config) Get(path string, out interface{}) error {
 	if len(c.SourceFiles) == 0 {
 		return errors.New("source files empty")
 	}
 	for _, f := range c.SourceFiles {
-		content, err := ParseJsonFile(f)
+		data, err := ParseJsonFile(f)
 		if err != nil {
 			return fmt.Errorf("invalid json file %s error %s", f, err)
 		}
-		if err = mergo.MergeWithOverwrite(&out, content); err != nil {
-			return fmt.Errorf("merge %T %v to %T %v error %s", content, content, out, out, err)
+		part, err := Get(data, path)
+		if err != nil {
+			return err
 		}
+		switch out.(type) {
+		case *map[string]interface{}:
+			if err = mergo.MergeWithOverwrite(out, part); err != nil {
+				return err
+			}
+		default:
+			var m map[string]interface{}
+			if err = mergo.MergeWithOverwrite(&m, part); err != nil {
+				return err
+			}
+			if err = mapstructure.Decode(m, &out); err != nil {
+				return err
+			}
+		}
+
 	}
 	return nil
 }
 
-func NewConfig(files ...string) *Config {
-	return &Config{
+func NewConfig(files ...string) Config {
+	return Config{
 		SourceFiles: files,
 	}
 }
