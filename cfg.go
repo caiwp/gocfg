@@ -30,7 +30,7 @@ func (c *Config) Get(path string, out interface{}) error {
 			return fmt.Errorf("invalid json file %s error %s", f, err)
 		}
 		if err = mergo.MergeWithOverwrite(&out, content); err != nil {
-			return err
+			return fmt.Errorf("merge %T %v to %T %v error %s", content, content, out, out, err)
 		}
 	}
 	return nil
